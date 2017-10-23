@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hspak/opvault"
+	"github.com/julienschmidt/httprouter"
 )
 
 // Different data sources would go here
@@ -104,14 +105,14 @@ func parsePayload(payload io.ReadCloser, obj interface{}) error {
 }
 
 func (s *server) Serve() {
-	mux := http.NewServeMux()
+	mux := httprouter.New()
 	// TODO: setup a frontend, eventually
-	// mux.Handle("/", http.FileServer(http.Dir("public")))
-	mux.HandleFunc("/v1/1password/status", s.StatusHandler)
-	mux.HandleFunc("/v1/1password/items", s.ItemsHandler)
-	mux.HandleFunc("/v1/1password/lock", s.LockHandler)
-	mux.HandleFunc("/v1/1password/unlock", s.UnlockHandler)
-	// TODO: pull in a router so we can pattern match routes for passwords
+	mux.GET("/v1/1password/status", s.StatusHandler)
+	mux.GET("/v1/1password/items", s.ItemsHandler)
+	// mux.GET("/v1/1password/item/:itemid", s.ItemsHandler)
+	mux.GET("/v1/1password/item/:itemid/password", s.PasswordHandler)
+	mux.POST("/v1/1password/lock", s.LockHandler)
+	mux.POST("/v1/1password/unlock", s.UnlockHandler)
 	s.log("INFO", fmt.Sprintf("listening on port %s", s.port))
 	log.Fatal(http.ListenAndServe(":"+s.port, mux))
 }

@@ -4,15 +4,13 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/julienschmidt/httprouter"
 )
 
 // TODO: setup middlewares so we can remove some boilerplate.
 
-func (s *server) StatusHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		jsonResp(w, http.StatusMethodNotAllowed, resp{Msg: "method not allowed", Success: false, Payload: nil})
-		return
-	}
+func (s *server) StatusHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	if s.timerStart.IsZero() {
 		jsonResp(w, http.StatusBadRequest, resp{Msg: "vault is locked", Success: false, Payload: nil})
 		return
@@ -22,11 +20,7 @@ func (s *server) StatusHandler(w http.ResponseWriter, req *http.Request) {
 	jsonResp(w, http.StatusOK, resp{Msg: msg, Success: true, Payload: nil})
 }
 
-func (s *server) ItemsHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		jsonResp(w, http.StatusMethodNotAllowed, resp{Msg: "method not allowed", Success: false, Payload: nil})
-		return
-	}
+func (s *server) ItemsHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	if s.timerStart.IsZero() {
 		jsonResp(w, http.StatusBadRequest, resp{Msg: "vault is locked", Success: false, Payload: nil})
 		return
@@ -39,11 +33,7 @@ func (s *server) ItemsHandler(w http.ResponseWriter, req *http.Request) {
 	jsonResp(w, http.StatusOK, resp{Msg: "success", Success: true, Payload: titles})
 }
 
-func (s *server) LockHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		jsonResp(w, http.StatusMethodNotAllowed, resp{Msg: "method not allowed", Success: false, Payload: nil})
-		return
-	}
+func (s *server) LockHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	s.profile.Lock()
 
 	// This is the recommended way to forcefully stop a timer.
@@ -58,11 +48,7 @@ func (s *server) LockHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 // The UnlockHandler will take the password as a payload and pass it to the configured opvault.
-func (s *server) UnlockHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		jsonResp(w, http.StatusMethodNotAllowed, resp{Msg: "method not allowed", Success: false, Payload: nil})
-		return
-	}
+func (s *server) UnlockHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	var payload struct {
 		Password string `json:"password"`
 	}
@@ -76,4 +62,11 @@ func (s *server) UnlockHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	s.resetTimer()
 	jsonResp(w, http.StatusOK, resp{Msg: "success", Success: true, Payload: nil})
+}
+
+func (s *server) PasswordHandler(w http.ResponseWriter, req *http.Request, p httprouter.Params) {
+	if s.timerStart.IsZero() {
+		jsonResp(w, http.StatusBadRequest, resp{Msg: "vault is locked", Success: false, Payload: nil})
+		return
+	}
 }
