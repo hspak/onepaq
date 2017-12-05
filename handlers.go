@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -64,9 +65,33 @@ func (s *server) UnlockHandler(w http.ResponseWriter, req *http.Request, _ httpr
 	jsonResp(w, http.StatusOK, resp{Msg: "success", Success: true, Payload: nil})
 }
 
-func (s *server) PasswordHandler(w http.ResponseWriter, req *http.Request, p httprouter.Params) {
+func (s *server) ItemHandler(w http.ResponseWriter, req *http.Request, p httprouter.Params) {
 	if s.timerStart.IsZero() {
 		jsonResp(w, http.StatusBadRequest, resp{Msg: "vault is locked", Success: false, Payload: nil})
 		return
 	}
+	items, err := s.profile.Items()
+	if err != nil {
+		jsonResp(w, http.StatusInternalServerError, resp{Msg: err.Error(), Success: false, Payload: nil})
+		return
+	}
+	itemID := strings.ToLower(p.ByName("itemid"))
+	for _, item := range items {
+		if item.Trashed() || strings.ToLower(item.Title()) != itemID {
+			continue
+		}
+		detail, err := item.Detail()
+		if err != nil {
+			jsonResp(w, http.StatusInternalServerError, resp{Msg: err.Error(), Success: false, Payload: nil})
+			return
+		}
+		data := make(map[string]string)
+		for _, field := range detail.Fields() {
+			data[field.Name()] = field.Value()
+		}
+		jsonResp(w, http.StatusOK, resp{Msg: "success", Success: true, Payload: data})
+		return
+	}
+	msg := fmt.Sprintf("secret entry: \"%s\" was not found", itemID)
+	jsonResp(w, http.StatusOK, resp{Msg: msg, Success: true, Payload: nil})
 }

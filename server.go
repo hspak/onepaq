@@ -109,8 +109,7 @@ func (s *server) Serve() {
 	// TODO: setup a frontend, eventually
 	mux.GET("/v1/1password/status", s.StatusHandler)
 	mux.GET("/v1/1password/items", s.ItemsHandler)
-	// mux.GET("/v1/1password/item/:itemid", s.ItemsHandler)
-	mux.GET("/v1/1password/item/:itemid/password", s.PasswordHandler)
+	mux.GET("/v1/1password/item/:itemid", s.ItemHandler)
 	mux.POST("/v1/1password/lock", s.LockHandler)
 	mux.POST("/v1/1password/unlock", s.UnlockHandler)
 	s.log("INFO", fmt.Sprintf("listening on port %s", s.port))
