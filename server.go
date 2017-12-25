@@ -112,6 +112,7 @@ func (s *server) Serve() {
 	mux.GET("/v1/1password/item/:itemid", s.ItemHandler)
 	mux.POST("/v1/1password/lock", s.LockHandler)
 	mux.POST("/v1/1password/unlock", s.UnlockHandler)
+	mux.NotFound = http.FileServer(http.Dir("public"))
 	s.log("INFO", fmt.Sprintf("listening on port %s", s.port))
 	log.Fatal(http.ListenAndServe(":"+s.port, mux))
 }

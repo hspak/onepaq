@@ -3,45 +3,9 @@ package main
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/hspak/opvault"
 )
-
-type entry struct {
-	username string
-	password string
-}
-
-// Supports both login and password types
-func NewItems(items []*opvault.Item) (map[string]*entry, error) {
-	entrymap := make(map[string]*entry)
-	for _, item := range items {
-		if !item.Trashed() {
-			l := &entry{
-				username: "N/A",
-				password: "N/A",
-			}
-			detail, err := item.Detail()
-			if err != nil {
-				return nil, err
-			}
-			if detail.Password() == "" {
-				for _, field := range detail.Fields() {
-					if field.Name() == "username" {
-						l.username = field.Value()
-					} else if field.Name() == "password" {
-						l.password = field.Value()
-					}
-				}
-			} else {
-				l.password = detail.Password()
-			}
-			entrymap[strings.ToLower(item.Title())] = l
-		}
-	}
-	return entrymap, nil
-}
 
 func queryItems(profile *opvault.Profile) ([]string, error) {
 	var titles []string
