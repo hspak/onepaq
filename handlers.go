@@ -12,17 +12,17 @@ import (
 // TODO: setup middlewares so we can remove some boilerplate.
 
 func (s *server) StatusHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
-	if s.timerStart.IsZero() {
+	if s.timerStartTime.IsZero() {
 		jsonResp(w, http.StatusBadRequest, resp{Msg: "vault is locked", Success: false, Payload: nil})
 		return
 	}
-	since := s.timeout - time.Since(s.timerStart)
+	since := s.timeout - time.Since(s.timerStartTime)
 	msg := fmt.Sprintf("vault is unlocked, %s until vault is autolocked", since)
 	jsonResp(w, http.StatusOK, resp{Msg: msg, Success: true, Payload: nil})
 }
 
 func (s *server) ItemsHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
-	if s.timerStart.IsZero() {
+	if s.timerStartTime.IsZero() {
 		jsonResp(w, http.StatusBadRequest, resp{Msg: "vault is locked", Success: false, Payload: nil})
 		return
 	}
@@ -44,7 +44,7 @@ func (s *server) LockHandler(w http.ResponseWriter, req *http.Request, _ httprou
 	}
 
 	// We need to be disciplined about setting this to zero everytime we stop the timer.
-	s.timerStart = time.Time{}
+	s.timerStartTime = time.Time{}
 	jsonResp(w, http.StatusOK, resp{Msg: "success", Success: true, Payload: nil})
 }
 
@@ -66,7 +66,7 @@ func (s *server) UnlockHandler(w http.ResponseWriter, req *http.Request, _ httpr
 }
 
 func (s *server) ItemHandler(w http.ResponseWriter, req *http.Request, p httprouter.Params) {
-	if s.timerStart.IsZero() {
+	if s.timerStartTime.IsZero() {
 		jsonResp(w, http.StatusBadRequest, resp{Msg: "vault is locked", Success: false, Payload: nil})
 		return
 	}

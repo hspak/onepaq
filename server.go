@@ -17,12 +17,12 @@ import (
 
 // Different data sources would go here
 type server struct {
-	profile    *opvault.Profile
-	timer      *time.Timer
-	timeout    time.Duration // seconds
-	timerStart time.Time
-	port       string
-	logfile    *os.File
+	profile        *opvault.Profile
+	timer          *time.Timer
+	timeout        time.Duration // seconds
+	timerStartTime time.Time
+	port           string
+	logfile        *os.File
 }
 
 func NewServer(cfg config) *server {
@@ -47,7 +47,7 @@ func NewServer(cfg config) *server {
 	server.timer = nil
 
 	server.timeout = cfg.UnlockTimeout * time.Second
-	server.timerStart = time.Time{}
+	server.timerStartTime = time.Time{}
 	server.profile = profile
 	server.port = strconv.Itoa(cfg.HTTPPort)
 	return server
@@ -56,19 +56,23 @@ func NewServer(cfg config) *server {
 func (s *server) resetTimer() {
 	if s.timer == nil {
 		s.timer = time.NewTimer(s.timeout)
-		s.log("DEBUG", fmt.Sprintf("timer first initialized with timeout %s", s.timeout))
+		s.log("DEBUG", fmt.Sprintf("vault lock timer first initialized with timeout %s", s.timeout))
 	} else {
+		if !s.timerStartTime.IsZero() {
+			remaining := s.timeout - time.Since(s.timerStartTime)
+			s.log("DEBUG", fmt.Sprintf("vault lock timer reset manually (had %s remaining)", remaining))
+		} else {
+			s.log("DEBUG", fmt.Sprintf("vault lock timer reset with timeout %s", s.timeout))
+		}
 		s.timer.Reset(s.timeout)
-		remaining := s.timeout - time.Since(s.timerStart)
-		s.log("DEBUG", fmt.Sprintf("timer reset with timeout %s (had %s remaining)", s.timeout, remaining))
 	}
-	s.timerStart = time.Now()
+	s.timerStartTime = time.Now()
 	go func() {
 		<-s.timer.C
 		// We need to be disciplined about setting this to zero everytime we stop the timer.
-		s.timerStart = time.Time{}
+		s.timerStartTime = time.Time{}
 		s.profile.Lock()
-		s.log("INFO", "vault unlock timed out, vault is locked")
+		s.log("INFO", "vault lock timer ran out, vault is locked")
 	}()
 }
 
@@ -106,7 +110,6 @@ func parsePayload(payload io.ReadCloser, obj interface{}) error {
 
 func (s *server) Serve() {
 	mux := httprouter.New()
-	// TODO: setup a frontend, eventually
 	mux.GET("/v1/1password/status", s.StatusHandler)
 	mux.GET("/v1/1password/items", s.ItemsHandler)
 	mux.GET("/v1/1password/item/:itemid", s.ItemHandler)
