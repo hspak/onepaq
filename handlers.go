@@ -11,6 +11,10 @@ import (
 
 // TODO: setup middlewares so we can remove some boilerplate.
 
+type passPayload struct {
+	Password string `json:"password"`
+}
+
 func (s *server) StatusHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	if s.timerStartTime.IsZero() {
 		jsonResp(w, http.StatusBadRequest, resp{Msg: "vault is locked", Success: false, Payload: nil})
@@ -35,24 +39,26 @@ func (s *server) ItemsHandler(w http.ResponseWriter, req *http.Request, _ httpro
 }
 
 func (s *server) LockHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
-	s.profile.Lock()
+	if s.profile != nil {
+		s.profile.Lock()
+	}
 
-	// This is the recommended way to forcefully stop a timer.
-	// https://golang.org/pkg/time/#Timer.Stop
-	if !s.timer.Stop() {
-		<-s.timer.C
+	if !s.timerStartTime.IsZero() {
+		// This is the recommended way to forcefully stop a timer.
+		// https://golang.org/pkg/time/#Timer.Stop
+		if s.timer != nil && !s.timer.Stop() {
+			<-s.timer.C
+		}
+		s.timerStartTime = time.Time{}
 	}
 
 	// We need to be disciplined about setting this to zero everytime we stop the timer.
-	s.timerStartTime = time.Time{}
 	jsonResp(w, http.StatusOK, resp{Msg: "success", Success: true, Payload: nil})
 }
 
 // The UnlockHandler will take the password as a payload and pass it to the configured opvault.
 func (s *server) UnlockHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
-	var payload struct {
-		Password string `json:"password"`
-	}
+	var payload passPayload
 	if err := parsePayload(req.Body, &payload); err != nil {
 		jsonResp(w, http.StatusBadRequest, resp{Msg: "bad POST payload format", Success: false, Payload: nil})
 		return

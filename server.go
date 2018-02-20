@@ -95,7 +95,7 @@ func setupLogging(logPath string) (*os.File, error) {
 	return logfile, nil
 }
 
-func parsePayload(payload io.ReadCloser, obj interface{}) error {
+func parsePayload(payload io.Reader, obj interface{}) error {
 	// This loads the entire payload into memory.
 	body, err := ioutil.ReadAll(payload)
 	if err != nil {
@@ -115,7 +115,7 @@ func (s *server) Serve() {
 	mux.GET("/v1/1password/item/:itemid", s.ItemHandler)
 	mux.POST("/v1/1password/lock", s.LockHandler)
 	mux.POST("/v1/1password/unlock", s.UnlockHandler)
-	mux.NotFound = http.FileServer(http.Dir("public"))
+	// mux.NotFound = http.FileServer(http.Dir("public"))
 	s.log("INFO", fmt.Sprintf("listening on port %s", s.port))
 	log.Fatal(http.ListenAndServe(":"+s.port, mux))
 }
