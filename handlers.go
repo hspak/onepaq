@@ -93,7 +93,13 @@ func (s *server) ItemHandler(w http.ResponseWriter, req *http.Request, p httprou
 		}
 		data := make(map[string]string)
 		for _, field := range detail.Fields() {
-			data[field.Name()] = field.Value()
+			var name string
+			if field.Designation() == "password" {
+				name = "password"
+			} else {
+				name = field.Name()
+			}
+			data[name] = field.Value()
 		}
 		jsonResp(w, http.StatusOK, resp{Msg: "success", Success: true, Payload: data})
 		return
