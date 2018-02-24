@@ -11,7 +11,6 @@ type config struct {
 	ProfileName   string        `json:"profile_name"`
 	HTTPPort      int           `json:"http_port"`
 	UnlockTimeout time.Duration `json:"unlock_timeout"`
-	LogPath       string        `json:"log_path"`
 }
 
 func parseConfig(path string) (config, error) {
@@ -27,9 +26,6 @@ func parseConfig(path string) (config, error) {
 	}
 
 	// Set sane(?) defaults
-	if len(cfg.LogPath) == 0 {
-		cfg.LogPath = "/var/log/onepaq/onepaq.log"
-	}
 	if cfg.HTTPPort == 0 {
 		cfg.HTTPPort = 8080
 	}

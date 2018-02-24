@@ -38,7 +38,7 @@ func NewServer(cfg config) *server {
 	if err != nil {
 		log.Fatal(err)
 	}
-	server.logfile, err = setupLogging(cfg.LogPath)
+	server.logfile, err = setupLogging("/var/log/onepaq/onepaq.log")
 	if err != nil {
 		log.Fatal(err)
 	}
