@@ -1,7 +1,8 @@
+// Default values
 {
   "opvault_path": "/Path/to/your/opvault",  // Sets the path to the opvault directory
   "profile_name": "default",                // Sets the profile name to use from opvault (typically 'default')
   "http_port": 8080,                        // Sets the HTTP the port to run on
   "unlock_timeout": 600,                    // Sets the timeout duration (in seconds) for the unlocked vault
-  "log_path": "/var/log/onepaq/onepaq.conf" // Sets the path of the logfile
+  "log_path": "/var/log/onepaq/onepaq.log"  // Sets the path of the logfile
 }

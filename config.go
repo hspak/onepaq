@@ -25,5 +25,19 @@ func parseConfig(path string) (config, error) {
 	if err != nil {
 		return cfg, err
 	}
+
+	// Set sane(?) defaults
+	if len(cfg.LogPath) == 0 {
+		cfg.LogPath = "/var/log/onepaq/onepaq.log"
+	}
+	if cfg.HTTPPort == 0 {
+		cfg.HTTPPort = 8080
+	}
+	if int(cfg.UnlockTimeout) == 0 {
+		cfg.UnlockTimeout = 600 * time.Second
+	}
+	if len(cfg.ProfileName) == 0 {
+		cfg.ProfileName = "default"
+	}
 	return cfg, nil
 }
