@@ -88,7 +88,7 @@ func setupLogging(logPath string) (*os.File, error) {
 	if DevBuild == "True" {
 		return os.Stdout, nil
 	}
-	logfile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_APPEND, 0644)
+	logfile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return nil, err
 	}
