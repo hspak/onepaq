@@ -23,6 +23,8 @@ type server struct {
 	timerStartTime time.Time
 	port           string
 	logfile        *os.File
+	tlsCert        string
+	tlsKey         string
 }
 
 func NewServer(cfg config) *server {
@@ -46,6 +48,10 @@ func NewServer(cfg config) *server {
 	// This will be initialized on first use.
 	server.timer = nil
 
+	if cfg.CertFile != "" && cfg.KeyFile != "" {
+		server.tlsKey = cfg.KeyFile
+		server.tlsCert = cfg.CertFile
+	}
 	server.timeout = cfg.UnlockTimeout * time.Second
 	server.timerStartTime = time.Time{}
 	server.profile = profile
@@ -115,7 +121,11 @@ func (s *server) Serve() {
 	mux.GET("/v1/1password/item/:itemid", s.ItemHandler)
 	mux.POST("/v1/1password/lock", s.LockHandler)
 	mux.POST("/v1/1password/unlock", s.UnlockHandler)
-	// mux.NotFound = http.FileServer(http.Dir("public"))
-	s.log("INFO", fmt.Sprintf("listening on port %s", s.port))
-	log.Fatal(http.ListenAndServe(":"+s.port, mux))
+	if s.tlsKey != "" && s.tlsCert != "" {
+		s.log("INFO", fmt.Sprintf("listening on port %s with TLS", s.port))
+		log.Fatal(http.ListenAndServeTLS(":"+s.port, s.tlsCert, s.tlsKey, mux))
+	} else {
+		s.log("INFO", fmt.Sprintf("listening on port %s", s.port))
+		log.Fatal(http.ListenAndServe(":"+s.port, mux))
+	}
 }

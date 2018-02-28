@@ -2,15 +2,20 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"syscall"
 	"time"
 
 	"golang.org/x/crypto/ssh/terminal"
 )
+
+// TODO: this entire client action handling can be cleaned up.
 
 func printPayload(act string, body resp) {
 	if !body.Success {
@@ -32,8 +37,8 @@ func printPayload(act string, body resp) {
 	}
 }
 
-func lockOutput(client *http.Client, vars clientVars) error {
-	path := fmt.Sprintf("%s/v1/1password/%s", vars.addr, vars.act)
+func lockOutput(proto string, client *http.Client, vars clientVars) error {
+	path := fmt.Sprintf("%s://%s/v1/1password/%s", proto, vars.addr, vars.act)
 	res, err := client.Post(path, "application/json", nil)
 	if err != nil {
 		return err
@@ -42,12 +47,13 @@ func lockOutput(client *http.Client, vars clientVars) error {
 	if err := parsePayload(res.Body, &body); err != nil {
 		return err
 	}
+	defer res.Body.Close()
 	printPayload(vars.act, body)
 	return nil
 }
 
-func unlockOutput(client *http.Client, vars clientVars) error {
-	path := fmt.Sprintf("%s/v1/1password/%s", vars.addr, vars.act)
+func unlockOutput(proto string, client *http.Client, vars clientVars) error {
+	path := fmt.Sprintf("%s://%s/v1/1password/%s", proto, vars.addr, vars.act)
 	var pass string
 	if len(vars.pass) == 0 {
 		fmt.Printf("Vault password: ")
@@ -69,6 +75,7 @@ func unlockOutput(client *http.Client, vars clientVars) error {
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
 	var body resp
 	if err := parsePayload(res.Body, &body); err != nil {
 		return err
@@ -77,11 +84,11 @@ func unlockOutput(client *http.Client, vars clientVars) error {
 	return nil
 }
 
-func readOutput(client *http.Client, vars clientVars) error {
+func readOutput(proto string, client *http.Client, vars clientVars) error {
 	if len(vars.item) == 0 {
 		return errors.New("error: read requires an item")
 	}
-	queryPath := fmt.Sprintf("%s/v1/1password/item/%s", vars.addr, vars.item)
+	queryPath := fmt.Sprintf("%s://%s/v1/1password/item/%s", proto, vars.addr, vars.item)
 	res, err := client.Get(queryPath)
 	if err != nil {
 		return err
@@ -95,19 +102,58 @@ func readOutput(client *http.Client, vars clientVars) error {
 	return nil
 }
 
-func clientAction(vars clientVars) error {
-	client := &http.Client{
-		Timeout: 10 * time.Second,
+func setupTLSConfig(cfg config) (*tls.Config, error) {
+	tlsClientConfig := &tls.Config{
+		InsecureSkipVerify: false,
 	}
 
-	err := error(nil)
+	if cfg.CertFile != "" && cfg.KeyFile != "" {
+		tlsCert, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.KeyFile)
+		if err != nil {
+			return nil, err
+		}
+		tlsClientConfig.Certificates = []tls.Certificate{tlsCert}
+	}
+
+	if cfg.CertCA != "" {
+		caCert, err := ioutil.ReadFile(cfg.CertCA)
+		if err != nil {
+			return nil, err
+		}
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+		tlsClientConfig.RootCAs = caCertPool
+	}
+
+	return tlsClientConfig, nil
+}
+
+func clientAction(vars clientVars, cfg config) error {
+	tlsConfig, err := setupTLSConfig(cfg)
+	if err != nil {
+		return err
+	}
+	transport := &http.Transport{TLSClientConfig: tlsConfig}
+	client := &http.Client{
+		Timeout:   10 * time.Second,
+		Transport: transport,
+	}
+
+	var proto string
+	if cfg.CertFile != "" && cfg.KeyFile != "" && cfg.CertCA != "" {
+		proto = "https"
+	} else {
+		proto = "http"
+	}
+
+	err = error(nil)
 	switch vars.act {
 	case "lock":
-		err = lockOutput(client, vars)
+		err = lockOutput(proto, client, vars)
 	case "unlock":
-		err = unlockOutput(client, vars)
+		err = unlockOutput(proto, client, vars)
 	case "read":
-		err = readOutput(client, vars)
+		err = readOutput(proto, client, vars)
 	default:
 		msg := fmt.Sprintf("error: unknown action '%s'", vars.act)
 		return errors.New(msg)

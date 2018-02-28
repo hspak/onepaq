@@ -11,6 +11,9 @@ type config struct {
 	ProfileName   string        `json:"profile_name"`
 	HTTPPort      int           `json:"http_port"`
 	UnlockTimeout time.Duration `json:"unlock_timeout"`
+	CertCA        string        `json:"ca_file"`
+	CertFile      string        `json:"cert_file"`
+	KeyFile       string        `json:"key_file"`
 }
 
 func parseConfig(path string) (config, error) {
@@ -32,7 +35,7 @@ func parseConfig(path string) (config, error) {
 	if int(cfg.UnlockTimeout) == 0 {
 		cfg.UnlockTimeout = 600 * time.Second
 	}
-	if len(cfg.ProfileName) == 0 {
+	if cfg.ProfileName == "" {
 		cfg.ProfileName = "default"
 	}
 	return cfg, nil

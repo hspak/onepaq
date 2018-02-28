@@ -16,7 +16,7 @@ func jsonResp(w http.ResponseWriter, header int, r resp) {
 	respObj, err := json.Marshal(r)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		msg := fmt.Sprintf("error: could not marshal provided payload: {}", r)
+		msg := fmt.Sprintf("error: could not marshal provided payload: %s", r.Payload)
 		w.Write([]byte(msg))
 	} else {
 		w.WriteHeader(header)

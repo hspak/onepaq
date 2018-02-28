@@ -11,10 +11,6 @@ import (
 // https://blog.cloudflare.com/setting-go-variables-at-compile-time/
 var DevBuild = "True"
 
-func parseArgs(args []string) {
-
-}
-
 type serverVars struct {
 	configPath string
 	addr       string
@@ -32,16 +28,16 @@ func main() {
 		sVars serverVars
 		cVars clientVars
 	)
-	defaultAddr := "127.0.0.1:8080"
+	defaultAddr := "localhost:8080"
 	serverCmd := flag.NewFlagSet("server", flag.ExitOnError)
-	serverCmd.StringVar(&sVars.configPath, "config-path", "/etc/onepaq.conf", "path to the config file")
+	serverCmd.StringVar(&sVars.configPath, "config-path", "/etc/onepaq.d/onepaq.conf", "path to the config file")
 	serverCmd.StringVar(&sVars.addr, "addr", defaultAddr, "address to serve on")
 
 	clientCmd := flag.NewFlagSet("client", flag.ExitOnError)
 	clientCmd.StringVar(&cVars.act, "act", "", "action to perform")
 	clientCmd.StringVar(&cVars.item, "item", "", "item to take action on")
 	clientCmd.StringVar(&cVars.pass, "pass", "", "password to unlock")
-	clientCmd.StringVar(&cVars.addr, "addr", fmt.Sprintf("http://%s", defaultAddr), "server to query")
+	clientCmd.StringVar(&cVars.addr, "addr", defaultAddr, "server to query")
 
 	if len(os.Args) < 2 {
 		fmt.Println("Usage of server:")
@@ -53,22 +49,24 @@ func main() {
 		os.Exit(2)
 	}
 
+	// The client commands require parsing the config file for TLS options
+	cfg, err := parseConfig(sVars.configPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	subCmd := os.Args[1]
 	switch subCmd {
 	case "server":
 		if err := serverCmd.Parse(os.Args[2:]); err != nil {
 			log.Fatal(err)
 		}
-		config, err := parseConfig(sVars.configPath)
-		if err != nil {
-			log.Fatal(err)
-		}
-		NewServer(config).Serve()
+		NewServer(cfg).Serve()
 	case "client":
 		if err := clientCmd.Parse(os.Args[2:]); err != nil {
 			log.Fatal(err)
 		}
-		if err := clientAction(cVars); err != nil {
+		if err := clientAction(cVars, cfg); err != nil {
 			log.Fatal(err)
 		}
 	default:
@@ -84,5 +82,4 @@ func main() {
 
 // onepaq server -config-path <path>
 // onepaq client -act <action> -item <item>
-// onepaq client -act <action>
 // onepaq client -act <action>
