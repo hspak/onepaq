@@ -17,13 +17,15 @@ type serverVars struct {
 }
 
 type clientVars struct {
-	act  string
-	item string
-	addr string
-	pass string
+	configPath string
+	act        string
+	item       string
+	addr       string
+	pass       string
 }
 
 func main() {
+	// TODO: Use a more ergonomic CLI parser
 	var (
 		sVars serverVars
 		cVars clientVars
@@ -31,13 +33,13 @@ func main() {
 	defaultAddr := "localhost:8080"
 	serverCmd := flag.NewFlagSet("server", flag.ExitOnError)
 	serverCmd.StringVar(&sVars.configPath, "config-path", "/etc/onepaq.d/onepaq.conf", "path to the config file")
-	serverCmd.StringVar(&sVars.addr, "addr", defaultAddr, "address to serve on")
 
 	clientCmd := flag.NewFlagSet("client", flag.ExitOnError)
 	clientCmd.StringVar(&cVars.act, "act", "", "action to perform")
 	clientCmd.StringVar(&cVars.item, "item", "", "item to take action on")
 	clientCmd.StringVar(&cVars.pass, "pass", "", "password to unlock")
 	clientCmd.StringVar(&cVars.addr, "addr", defaultAddr, "server to query")
+	clientCmd.StringVar(&cVars.configPath, "config-path", "/etc/onepaq.d/onepaq.conf", "path to the config file")
 
 	if len(os.Args) < 2 {
 		fmt.Println("Usage of server:")
@@ -49,20 +51,22 @@ func main() {
 		os.Exit(2)
 	}
 
-	// The client commands require parsing the config file for TLS options
-	cfg, err := parseConfig(sVars.configPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	subCmd := os.Args[1]
 	switch subCmd {
 	case "server":
+		cfg, err := parseConfig(sVars.configPath)
+		if err != nil {
+			log.Fatal(err)
+		}
 		if err := serverCmd.Parse(os.Args[2:]); err != nil {
 			log.Fatal(err)
 		}
 		NewServer(cfg).Serve()
 	case "client":
+		cfg, err := parseConfig(cVars.configPath)
+		if err != nil {
+			log.Fatal(err)
+		}
 		if err := clientCmd.Parse(os.Args[2:]); err != nil {
 			log.Fatal(err)
 		}
@@ -79,7 +83,3 @@ func main() {
 		os.Exit(2)
 	}
 }
-
-// onepaq server -config-path <path>
-// onepaq client -act <action> -item <item>
-// onepaq client -act <action>
