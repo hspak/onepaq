@@ -9,7 +9,7 @@ import (
 type config struct {
 	OpvaultPath   string        `json:"opvault_path"`
 	ProfileName   string        `json:"profile_name"`
-	HTTPPort      int           `json:"http_port"`
+	HTTPAddr      string        `json:"http_addr"`
 	UnlockTimeout time.Duration `json:"unlock_timeout"`
 	CertCA        string        `json:"ca_file"`
 	CertFile      string        `json:"cert_file"`
@@ -29,8 +29,8 @@ func parseConfig(path string) (config, error) {
 	}
 
 	// Set sane(?) defaults
-	if cfg.HTTPPort == 0 {
-		cfg.HTTPPort = 8080
+	if cfg.HTTPAddr == "" {
+		cfg.HTTPAddr = "localhost:8080"
 	}
 	if int(cfg.UnlockTimeout) == 0 {
 		cfg.UnlockTimeout = 600 * time.Second

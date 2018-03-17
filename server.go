@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,27 +10,25 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/hspak/opvault"
 	"github.com/julienschmidt/httprouter"
 )
 
-// Different data sources would go here
 type server struct {
 	profile        *opvault.Profile
 	timer          *time.Timer
 	timeout        time.Duration // seconds
 	timerStartTime time.Time
-	port           string
+	addr           string
 	logfile        *os.File
 	tlsCert        string
 	tlsKey         string
+	tlsRootCA      *x509.CertPool
 }
 
 func NewServer(cfg config) *server {
-	server := new(server)
 	vault, err := opvault.Open(cfg.OpvaultPath)
 	if err != nil {
 		log.Fatal(err)
@@ -40,29 +40,38 @@ func NewServer(cfg config) *server {
 	if err != nil {
 		log.Fatal(err)
 	}
-	server.logfile, err = setupLogging("/var/log/onepaq/onepaq.log")
+	logfile, err := setupLogging("/var/log/onepaq/onepaq.log")
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// This will be initialized on first use.
-	server.timer = nil
-
-	if cfg.CertFile != "" && cfg.KeyFile != "" {
-		server.tlsKey = cfg.KeyFile
-		server.tlsCert = cfg.CertFile
+	var rootCAs *x509.CertPool
+	if cfg.CertCA != "" {
+		caCert, err := ioutil.ReadFile(cfg.CertCA)
+		if err != nil {
+			log.Fatal(err)
+		}
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+		rootCAs = caCertPool
 	}
-	server.timeout = cfg.UnlockTimeout * time.Second
-	server.timerStartTime = time.Time{}
-	server.profile = profile
-	server.port = strconv.Itoa(cfg.HTTPPort)
-	return server
+
+	return &server{
+		logfile:        logfile,
+		timer:          nil, // This will be initialized on first use.
+		tlsKey:         cfg.KeyFile,
+		tlsCert:        cfg.CertFile,
+		tlsRootCA:      rootCAs,
+		timeout:        cfg.UnlockTimeout * time.Second,
+		timerStartTime: time.Time{},
+		profile:        profile,
+		addr:           cfg.HTTPAddr,
+	}
 }
 
 func (s *server) resetTimer() {
 	if s.timer == nil {
 		s.timer = time.NewTimer(s.timeout)
-		s.log("DEBUG", fmt.Sprintf("vault lock timer first initialized with timeout %s", s.timeout))
+		s.log("DEBUG", fmt.Sprintf("vault lock timer first triggered with timeout %s", s.timeout))
 	} else {
 		if !s.timerStartTime.IsZero() {
 			remaining := s.timeout - time.Since(s.timerStartTime)
@@ -122,10 +131,22 @@ func (s *server) Serve() {
 	mux.POST("/v1/1password/lock", s.LockHandler)
 	mux.POST("/v1/1password/unlock", s.UnlockHandler)
 	if s.tlsKey != "" && s.tlsCert != "" {
-		s.log("INFO", fmt.Sprintf("listening on port %s with TLS", s.port))
-		log.Fatal(http.ListenAndServeTLS(":"+s.port, s.tlsCert, s.tlsKey, mux))
+		s.log("INFO", fmt.Sprintf("listening on %s with TLS", s.addr))
+		tlsCfg := &tls.Config{
+			ClientAuth:         tls.RequireAndVerifyClientCert,
+			InsecureSkipVerify: false,
+			ClientCAs:          s.tlsRootCA,
+		}
+		srv := http.Server{
+			Addr:              s.addr,
+			Handler:           mux,
+			TLSConfig:         tlsCfg,
+			ReadHeaderTimeout: 5 * time.Second,
+			WriteTimeout:      5 * time.Second,
+		}
+		log.Fatal(srv.ListenAndServeTLS(s.tlsCert, s.tlsKey))
 	} else {
-		s.log("INFO", fmt.Sprintf("listening on port %s", s.port))
-		log.Fatal(http.ListenAndServe(":"+s.port, mux))
+		s.log("INFO", fmt.Sprintf("listening on %s", s.addr))
+		log.Fatal(http.ListenAndServe(s.addr, mux))
 	}
 }

@@ -1,7 +1,9 @@
-// Default values
 {
-  "opvault_path": "/Path/to/your/1password.opvault", // Sets the path to the opvault directory
-  "profile_name": "default",                         // Sets the profile name to use from opvault (typically 'default')
-  "http_port": 8080,                                 // Sets the HTTP the port to run on
-  "unlock_timeout": 600                              // Sets the timeout duration (in seconds) for the unlocked vault
+  "opvault_path": "/home/hsp/Dropbox/1Password/1Password.opvault/", // Sets the path to the opvault directory
+  "profile_name": "default",                                        // Sets the profile name to use form opvault (typically 'default')
+  "http_addr": "localhost:8080",                                    // Sets the HTTP address to listen on
+  "unlock_timeout": 900,                                            // Sets the timeout duration (in seconds) for the unlocked vault
+  "ca_file": "/etc/onepaq.d/ca.pem",                                // Sets the Root CA file used to verify certificates
+  "cert_file": "/etc/onepaq.d/cert.crt",                            // Sets the certificate used to serve TLS
+  "key_file": "/etc/onepaq.d/ca.key"                                // Sets the key used to serve TLS
 }

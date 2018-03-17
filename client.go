@@ -103,16 +103,16 @@ func readOutput(proto string, client *http.Client, vars clientVars) error {
 }
 
 func setupTLSConfig(cfg config) (*tls.Config, error) {
-	tlsClientConfig := &tls.Config{
-		InsecureSkipVerify: false,
-	}
-
+	var (
+		certificates []tls.Certificate
+		rootCAs      *x509.CertPool
+	)
 	if cfg.CertFile != "" && cfg.KeyFile != "" {
 		tlsCert, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.KeyFile)
 		if err != nil {
 			return nil, err
 		}
-		tlsClientConfig.Certificates = []tls.Certificate{tlsCert}
+		certificates = []tls.Certificate{tlsCert}
 	}
 
 	if cfg.CertCA != "" {
@@ -122,10 +122,13 @@ func setupTLSConfig(cfg config) (*tls.Config, error) {
 		}
 		caCertPool := x509.NewCertPool()
 		caCertPool.AppendCertsFromPEM(caCert)
-		tlsClientConfig.RootCAs = caCertPool
+		rootCAs = caCertPool
 	}
-
-	return tlsClientConfig, nil
+	return &tls.Config{
+		InsecureSkipVerify: false,
+		Certificates:       certificates,
+		RootCAs:            rootCAs,
+	}, nil
 }
 
 func clientAction(vars clientVars, cfg config) error {
